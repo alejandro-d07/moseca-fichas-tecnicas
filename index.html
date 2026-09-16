@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MOSECA – Generador de Fichas Técnicas v4.2</title>
+<title>MOSECA – Generador de Fichas Técnicas v4.3</title>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -201,7 +201,7 @@ textarea{resize:vertical;min-height:64px}
 <header class="app">
   <div class="logo-badge">MOSECA</div>
   <h1>Generador de Fichas Técnicas</h1>
-  <span class="ver">v4.2</span>
+  <span class="ver">v4.3</span>
   <span id="save-status" class="save-badge unsaved">Sin guardar</span>
   <div class="account" id="account" style="display:none">
     <span class="account-email" id="account-email"></span>
@@ -808,7 +808,8 @@ function continueLocal(){
 function firebaseMessage(err, fallback){
   if(err&&err.code==='permission-denied') return 'Firebase rechazó el acceso. Revisa que las reglas autoricen '+AUTHORIZED_EMAIL+'.';
   if(err&&err.code==='resource-exhausted') return 'Firestore alcanzó su cuota gratuita. Inténtalo nuevamente cuando se restablezca.';
-  return fallback;
+  if(err&&err.code==='invalid-argument') return 'Firestore rechazó uno de los datos de la ficha. Detalle: '+err.message;
+  return err&&err.message ? fallback+'\n\nDetalle: '+err.message : fallback;
 }
 function automaticLogoId(){ return ['#FFBF0A','#f0f0f0','#ffffff'].includes(String(S.color||'').toLowerCase()) ? 'navy' : 'white'; }
 function resolvedHeaderLogo(){
@@ -972,7 +973,7 @@ function transformIconRefs(state, icons, encode){
   const change=value=>map.has(value)?map.get(value):value;
   Object.keys(state.sectionIcons||{}).forEach(k=>{ state.sectionIcons[k]=change(state.sectionIcons[k]); });
   Object.values(state.modo||{}).forEach(arr=>(arr||[]).forEach(step=>{ step.icon=change(step.icon); }));
-  ['limpiezaIcon','curadoIcon'].forEach(k=>{ state[k]=change(state[k]); });
+  ['limpiezaIcon','curadoIcon'].forEach(k=>{ if(Object.prototype.hasOwnProperty.call(state,k)) state[k]=change(state[k]); });
   return state;
 }
 function encodeIconRefs(state){ return transformIconRefs(state,getIcons(),true); }
