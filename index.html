@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MOSECA – Generador de Fichas Técnicas v4.3</title>
+<title>MOSECA – Generador de Fichas Técnicas v4.4</title>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -201,7 +201,7 @@ textarea{resize:vertical;min-height:64px}
 <header class="app">
   <div class="logo-badge">MOSECA</div>
   <h1>Generador de Fichas Técnicas</h1>
-  <span class="ver">v4.3</span>
+  <span class="ver">v4.4</span>
   <span id="save-status" class="save-badge unsaved">Sin guardar</span>
   <div class="account" id="account" style="display:none">
     <span class="account-email" id="account-email"></span>
@@ -1710,9 +1710,17 @@ async function loadCloudLibrary(){
   const lib={};
   snap.forEach(doc=>{
     const data=doc.data()||{};
-    if(data.kind!=='ficha'||!data.contenido) return;
+    if(data.kind!=='ficha') return;
+    let contenido=null;
+    if(typeof data.contenidoJson==='string'){
+      try{ contenido=JSON.parse(data.contenidoJson); }
+      catch(err){ console.error('La ficha '+doc.id+' contiene JSON inválido:',err); return; }
+    }else if(data.contenido){
+      contenido=data.contenido;
+    }
+    if(!contenido) return;
     const when=data.updatedAt&&data.updatedAt.toMillis?data.updatedAt.toMillis():Date.now();
-    const state=applyCloudBrand(decodeIconRefs(normalize(data.contenido)));
+    const state=applyCloudBrand(decodeIconRefs(normalize(contenido)));
     lib[doc.id]={...state,savedAt:when};
   });
   cloudLibrary=lib;
@@ -1748,9 +1756,13 @@ async function saveCurrentFicha(){
       const cloudState=await prepareStateForCloud(S);
       const payload={
         kind:'ficha', ownerId:cloudUser.uid, ownerEmail:AUTHORIZED_EMAIL,
-        nombre:cloudState.name, categoria:cloudState.type, contenido:cloudState,
+        nombre:cloudState.name, categoria:cloudState.type,
+        contenidoJson:JSON.stringify(cloudState),
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       };
+      // Firestore no admite arreglos dentro de otros arreglos. Las tablas y
+      // listas de la ficha se conservan completas dentro de una cadena JSON.
+      if(!isNew) payload.contenido=firebase.firestore.FieldValue.delete();
       if(isNew) payload.createdAt=firebase.firestore.FieldValue.serverTimestamp();
       await firebaseDb.collection('fichas').doc(id).set(payload,{merge:true});
       displayState.productImg=cloudState.productImg;
